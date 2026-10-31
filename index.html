@@ -1,763 +1,357 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="en">
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Solapur Municipal Corporation - Spatial GIS Dashboard</title>
-        <!-- Tailwind CSS -->
-        <script src="https://cdn.tailwindcss.com"></script>
-        <!-- Font Awesome -->
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <title>Solapur Municipal Corporation - GIS Dashboard</title>
         <!-- OpenLayers CSS -->
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v7.4.0/ol.css">
-        <!-- Inter Font -->
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/openlayers/6.15.1/ol.css">
+        <!-- FontAwesome CSS -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            body { font-family: 'Inter', sans-serif; }
-            /* Custom Scrollbar */
-            ::-webkit-scrollbar { width: 6px; height: 6px; }
-            ::-webkit-scrollbar-track { background: #f1f5f9; }
-            ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-            ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body, html { width: 100%; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; color: #333; overflow: hidden; }
+            
+            /* Top Header */
+            header {
+                height: 60px;
+                background: linear-gradient(135deg, #1e3c72, #2a5298);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 20px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                z-index: 1000;
+            }
+            .header-title { display: flex; align-items: center; gap: 12px; }
+            .header-title i { font-size: 24px; color: #4facfe; }
+            .header-title h1 { font-size: 18px; font-weight: 600; }
+            .header-title p { font-size: 11px; opacity: 0.8; }
+            
+            .header-badges { display: flex; gap: 15px; align-items: center; }
+            .badge { background: rgba(255,255,255,0.15); padding: 5px 12px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+            .badge span.dot { width: 8px; height: 8px; background: #2ecc71; border-radius: 50%; display: inline-block; }
+
+            /* Main Layout */
+            .main-container { display: flex; height: calc(100vh - 60px); width: 100vw; position: relative; }
+
+            /* Sidebar */
+            aside {
+                width: 320px;
+                background: #ffffff;
+                border-right: 1px solid #e0e0e0;
+                display: flex;
+                flex-direction: column;
+                z-index: 10;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+                transition: transform 0.3s ease;
+            }
+            .sidebar-search { padding: 15px; border-bottom: 1px solid #eee; }
+            .sidebar-search input {
+                width: 100%;
+                padding: 8px 12px 8px 32px;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-size: 13px;
+                background: #f8f9fa;
+                outline: none;
+            }
+            .search-wrapper { position: relative; }
+            .search-wrapper i { position: absolute; left: 10px; top: 10px; color: #888; font-size: 13px; }
+
+            .layer-catalog { flex: 1; overflow-y: auto; padding: 15px; }
+            .category-title { font-size: 11px; text-transform: uppercase; color: #888; font-weight: 700; margin-bottom: 8px; margin-top: 15px; display: flex; justify-content: space-between; }
+            .layer-item { background: #fafbfc; border: 1px solid #eef0f2; padding: 10px; border-radius: 6px; margin-bottom: 8px; }
+            .layer-item-header { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 500; }
+            .layer-item-header label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+            .layer-controls { margin-top: 8px; padding-left: 22px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #666; }
+            .layer-controls input[type="range"] { width: 120px; accent-color: #2a5298; }
+
+            /* Map Container */
+            #map { flex: 1; height: 100%; position: relative; background: #e5e3df; }
+
+            /* Map Base Layer Switcher Control */
+            .basemap-switcher {
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                background: white;
+                padding: 5px;
+                border-radius: 6px;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+                display: flex;
+                gap: 5px;
+                z-index: 1000;
+            }
+            .basemap-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+                border: none;
+                background: #f1f3f5;
+                cursor: pointer;
+                border-radius: 4px;
+                font-weight: 500;
+                transition: background 0.2s;
+            }
+            .basemap-btn.active { background: #2a5298; color: white; }
+
+            /* Footer Status Bar */
+            .status-bar {
+                position: absolute;
+                bottom: 0;
+                left: 320px;
+                right: 0;
+                height: 25px;
+                background: rgba(255, 255, 255, 0.9);
+                border-top: 1px solid #ddd;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 15px;
+                font-size: 11px;
+                color: #555;
+                z-index: 1000;
+            }
+
+            /* Popup styling */
             .ol-popup {
                 position: absolute;
                 background-color: white;
-                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-                padding: 15px;
-                border-radius: 12px;
-                border: 1px solid #e2e8f0;
+                box-shadow: 0 3px 14px rgba(0,0,0,0.2);
+                padding: 12px;
+                border-radius: 8px;
+                border: 1px solid #ccc;
                 bottom: 12px;
                 left: -50px;
-                min-width: 280px;
-                max-width: 360px;
-                font-size: 13px;
-                z-index: 1000;
-            }
-            .ol-popup:after, .ol-popup:before {
-                top: 100%;
-                border: solid transparent;
-                content: " ";
-                height: 0;
-                width: 0;
-                position: absolute;
-                pointer-events: none;
-            }
-            .ol-popup:after {
-                border-color: rgba(255, 255, 255, 0);
-                border-top-color: white;
-                border-width: 10px;
-                left: 48px;
-                margin-left: -10px;
-            }
-            .ol-popup:before {
-                border-color: rgba(226, 232, 240, 0);
-                border-top-color: #e2e8f0;
-                border-width: 11px;
-                left: 48px;
-                margin-left: -11px;
+                min-width: 200px;
             }
             .ol-popup-closer {
                 text-decoration: none;
                 position: absolute;
-                top: 10px;
-                right: 12px;
-                color: #94a3b8;
+                top: 5px;
+                right: 8px;
+                color: #aaa;
                 font-weight: bold;
             }
-            .ol-popup-closer:hover { color: #334155; }
+            .ol-popup-closer:after { content: "✖"; }
         </style>
     </head>
-    <body class="h-full bg-slate-50 text-slate-800 flex flex-col overflow-hidden">
-
-        <!-- Top Header -->
-        <header class="bg-slate-900 text-white shadow-md z-30 flex items-center justify-between px-4 lg:px-6 py-3 shrink-0">
-            <div class="flex items-center space-x-3">
-                <button id="sidebar-toggle" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Toggle Sidebar">
-                    <i class="fa-solid fa-bars text-lg"></i>
-                </button>
-                <div class="flex items-center space-x-2">
-                    <div class="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-inner">
-                        <i class="fa-solid fa-map-location-dot"></i>
-                    </div>
-                    <div>
-                        <h1 class="font-bold text-sm lg:text-base tracking-wide text-slate-100">Solapur Municipal Corporation</h1>
-                        <p class="text-xs text-slate-400">Spatial GIS & Infrastructure Intelligence Dashboard</p>
-                    </div>
+    <body>
+        <header>
+            <div class="header-title">
+                <i class="fa-solid fa-map-location-dot"></i>
+                <div>
+                    <h1>Solapur Municipal Corporation</h1>
+                    <p>Spatial GIS & Infrastructure Intelligence Dashboard</p>
                 </div>
             </div>
-
-            <!-- Live Status Badges & Quick Stats -->
-            <div class="hidden md:flex items-center space-x-4">
-                <div class="flex items-center space-x-2 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700 text-xs">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-slate-300 font-medium">Live Feed: Active</span>
-                </div>
-                <div class="bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700 text-xs flex items-center space-x-2">
-                    <i class="fa-solid fa-layer-group text-indigo-400"></i>
-                    <span>Layers: <strong class="text-white" id="stat-layers">6</strong></span>
-                </div>
-                <div class="bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700 text-xs flex items-center space-x-2">
-                    <i class="fa-solid fa-database text-amber-400"></i>
-                    <span>Features: <strong class="text-white" id="stat-features">1,420</strong></span>
-                </div>
-            </div>
-
-            <!-- Header Right Action Buttons -->
-            <div class="flex items-center space-x-2">
-                <button onclick="resetMapView()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium transition flex items-center space-x-1.5 border border-slate-700">
-                    <i class="fa-solid fa-house-chimney text-indigo-400"></i>
-                    <span class="hidden sm:inline">Default View</span>
-                </button>
-                <button onclick="toggleMeasureTool()" id="measure-btn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium transition flex items-center space-x-1.5 border border-slate-700">
-                    <i class="fa-solid fa-ruler text-amber-400"></i>
-                    <span class="hidden sm:inline">Measure</span>
-                </button>
-                <button onclick="openLegendModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-medium transition flex items-center space-x-1.5 shadow-sm">
-                    <i class="fa-solid fa-book-atlas"></i>
-                    <span class="hidden sm:inline">Legend</span>
-                </button>
+            <div class="header-badges">
+                <div class="badge"><span class="dot"></span> Live Feed: Active</div>
+                <div class="badge"><i class="fa-solid fa-layer-group"></i> Layers: <span id="layer-count">3</span></div>
             </div>
         </header>
 
-        <!-- Main Content Area -->
-        <div class="flex-1 flex relative overflow-hidden">
-            
-            <!-- Left Sidebar Layer Catalog -->
-            <aside id="sidebar" class="w-80 bg-white border-r border-slate-200 flex flex-col z-20 transition-all duration-300 shadow-lg lg:translate-x-0 absolute lg:relative h-full">
-                <!-- Search Box -->
-                <div class="p-4 border-b border-slate-100 bg-slate-50/50">
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
-                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                        </span>
-                        <input type="text" id="layer-search" oninput="filterLayers(this.value)" placeholder="Search layers or attributes..." class="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 placeholder-slate-400 shadow-sm transition">
+        <div class="main-container">
+            <aside>
+                <div class="sidebar-search">
+                    <div class="search-wrapper">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="layer-search-input" placeholder="Search layers or attributes..." onkeyup="filterLayers()">
                     </div>
                 </div>
-
-                <!-- Layer Catalog Accordion / List -->
-                <div id="layer-catalog" class="flex-1 overflow-y-auto p-4 space-y-6">
-                    
-                    <!-- Group 1: Administrative Boundaries -->
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
-                            <span><i class="fa-solid fa-shapes mr-1.5 text-indigo-600"></i> Administrative</span>
-                            <span class="text-slate-400 font-normal">1 layer</span>
-                        </div>
-                        <div class="space-y-2" data-layer-group="administrative">
-                            <!-- Layer Item -->
-                            <div class="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition shadow-xs">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center space-x-2">
-                                        <input type="checkbox" id="chk-solapur_wards_2026_2" checked onchange="toggleLayerVisibility('solapur_wards_2026_2', this.checked)" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer">
-                                        <label for="chk-solapur_wards_2026_2" class="text-xs font-semibold text-slate-700 cursor-pointer">Solapur Wards (2026)</label>
-                                    </div>
-                                    <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">Polygon</span>
-                                </div>
-                                <div class="flex items-center justify-between pl-6 text-[11px] text-slate-500">
-                                    <span>Opacity: <span id="opacity-val-solapur_wards_2026_2">80</span>%</span>
-                                    <input type="range" min="0" max="100" value="80" oninput="changeLayerOpacity('solapur_wards_2026_2', this.value)" class="w-28 accent-indigo-600 h-1 bg-slate-200 rounded-lg cursor-pointer">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Group 2: Transport & Safety -->
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
-                            <span><i class="fa-solid fa-road mr-1.5 text-blue-600"></i> Transport & Safety</span>
-                            <span class="text-slate-400 font-normal">2 layers</span>
-                        </div>
-                        <div class="space-y-2" data-layer-group="transport">
-                            <!-- Road Layer -->
-                            <div class="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition shadow-xs">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center space-x-2">
-                                        <input type="checkbox" id="chk-road_2_5" checked onchange="toggleLayerVisibility('road_2_5', this.checked)" class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer">
-                                        <label for="chk-road_2_5" class="text-xs font-semibold text-slate-700 cursor-pointer">Road Network</label>
-                                    </div>
-                                    <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">Line</span>
-                                </div>
-                                <div class="flex items-center justify-between pl-6 text-[11px] text-slate-500">
-                                    <span>Opacity: <span id="opacity-val-road_2_5">90</span>%</span>
-                                    <input type="range" min="0" max="100" value="90" oninput="changeLayerOpacity('road_2_5', this.value)" class="w-28 accent-blue-600 h-1 bg-slate-200 rounded-lg cursor-pointer">
-                                </div>
-                            </div>
-                            <!-- Police Station Layer -->
-                            <div class="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition shadow-xs">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center space-x-2">
-                                        <input type="checkbox" id="chk-police_station_6" checked onchange="toggleLayerVisibility('police_station_6', this.checked)" class="w-4 h-4 text-cyan-600 rounded border-slate-300 focus:ring-cyan-500 cursor-pointer">
-                                        <label for="chk-police_station_6" class="text-xs font-semibold text-slate-700 cursor-pointer">Police Stations</label>
-                                    </div>
-                                    <span class="text-[10px] bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-full font-medium">Point</span>
-                                </div>
-                                <div class="flex items-center justify-between pl-6 text-[11px] text-slate-500">
-                                    <span>Opacity: <span id="opacity-val-police_station_6">100</span>%</span>
-                                    <input type="range" min="0" max="100" value="100" oninput="changeLayerOpacity('police_station_6', this.value)" class="w-28 accent-cyan-600 h-1 bg-slate-200 rounded-lg cursor-pointer">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Group 3: Utilities & Infrastructure -->
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
-                            <span><i class="fa-solid fa-faucet-drip mr-1.5 text-amber-600"></i> Utilities & Housing</span>
-                            <span class="text-slate-400 font-normal">2 layers</span>
-                        </div>
-                        <div class="space-y-2" data-layer-group="utilities">
-                            <!-- Slum Layer -->
-                            <div class="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition shadow-xs">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center space-x-2">
-                                        <input type="checkbox" id="chk-slum_3" checked onchange="toggleLayerVisibility('slum_3', this.checked)" class="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500 cursor-pointer">
-                                        <label for="chk-slum_3" class="text-xs font-semibold text-slate-700 cursor-pointer">Slum Settlements</label>
-                                    </div>
-                                    <span class="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">Polygon</span>
-                                </div>
-                                <div class="flex items-center justify-between pl-6 text-[11px] text-slate-500">
-                                    <span>Opacity: <span id="opacity-val-slum_3">75</span>%</span>
-                                    <input type="range" min="0" max="100" value="75" oninput="changeLayerOpacity('slum_3', this.value)" class="w-28 accent-amber-600 h-1 bg-slate-200 rounded-lg cursor-pointer">
-                                </div>
-                            </div>
-                            <!-- Drainage Layer -->
-                            <div class="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition shadow-xs">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center space-x-2">
-                                        <input type="checkbox" id="chk-drainage_4" checked onchange="toggleLayerVisibility('drainage_4', this.checked)" class="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer">
-                                        <label for="chk-drainage_4" class="text-xs font-semibold text-slate-700 cursor-pointer">Drainage Network</label>
-                                    </div>
-                                    <span class="text-[10px] bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full font-medium">Line</span>
-                                </div>
-                                <div class="flex items-center justify-between pl-6 text-[11px] text-slate-500">
-                                    <span>Opacity: <span id="opacity-val-drainage_4">85</span>%</span>
-                                    <input type="range" min="0" max="100" value="85" oninput="changeLayerOpacity('drainage_4', this.value)" class="w-28 accent-teal-600 h-1 bg-slate-200 rounded-lg cursor-pointer">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Group 4: Healthcare & Social -->
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1">
-                            <span><i class="fa-solid fa-hospital mr-1.5 text-rose-600"></i> Healthcare</span>
-                            <span class="text-slate-400 font-normal">1 layer</span>
-                        </div>
-                        <div class="space-y-2" data-layer-group="healthcare">
-                            <!-- Hospitals Layer -->
-                            <div class="bg-slate-50 hover:bg-slate-100/80 p-3 rounded-xl border border-slate-200/80 transition shadow-xs">
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="flex items-center space-x-2">
-                                        <input type="checkbox" id="chk-solapur_hospitals_7" checked onchange="toggleLayerVisibility('solapur_hospitals_7', this.checked)" class="w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500 cursor-pointer">
-                                        <label for="chk-solapur_hospitals_7" class="text-xs font-semibold text-slate-700 cursor-pointer">Solapur Hospitals</label>
-                                    </div>
-                                    <span class="text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded-full font-medium">Point</span>
-                                </div>
-                                <div class="flex items-center justify-between pl-6 text-[11px] text-slate-500">
-                                    <span>Opacity: <span id="opacity-val-solapur_hospitals_7">100</span>%</span>
-                                    <input type="range" min="0" max="100" value="100" oninput="changeLayerOpacity('solapur_hospitals_7', this.value)" class="w-28 accent-rose-600 h-1 bg-slate-200 rounded-lg cursor-pointer">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Sidebar Footer Attribution -->
-                <div class="p-3 border-t border-slate-100 bg-slate-50 text-[11px] text-slate-400 text-center">
-                    Solapur Municipal Corporation &bull; GIS Cell &copy; 2026
+                <div class="layer-catalog" id="layer-catalog-container">
+                    <!-- Dynamic Layers will be injected here -->
                 </div>
             </aside>
 
-            <!-- Map Viewport -->
-            <main class="flex-1 relative h-full bg-slate-100">
-                <div id="map" class="w-full h-full"></div>
-
-                <!-- Popup Overlay -->
-                <div id="popup" class="ol-popup hidden">
-                    <a href="#" id="popup-closer" class="ol-popup-closer"><i class="fa-solid fa-xmark"></i></a>
+            <div id="map">
+                <div class="basemap-switcher">
+                    <button class="basemap-btn active" onclick="setBaseMap('osm')">OSM Standard</button>
+                    <button class="basemap-btn" onclick="setBaseMap('carto')">Carto Light</button>
+                    <button class="basemap-btn" onclick="setBaseMap('satellite')">Satellite</button>
+                </div>
+                
+                <div id="popup" class="ol-popup">
+                    <a href="#" id="popup-closer" class="ol-popup-closer"></a>
                     <div id="popup-content"></div>
                 </div>
+            </div>
 
-                <!-- Floating Basemap Selector Tool -->
-                <div class="absolute top-4 right-4 bg-white/90 backdrop-blur-md p-1.5 rounded-xl shadow-lg border border-slate-200 flex items-center space-x-1 z-10 text-xs font-medium">
-                    <button onclick="setBaseMap('osm')" id="btn-basemap-osm" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition shadow-xs">OSM Standard</button>
-                    <button onclick="setBaseMap('carto')" id="btn-basemap-carto" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition">Carto Light</button>
-                    <button onclick="setBaseMap('sat')" id="btn-basemap-sat" class="px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition">Satellite</button>
-                </div>
-
-                <!-- Floating Coordinate / Scale Bar Indicator -->
-                <div class="absolute bottom-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg shadow-md border border-slate-200 text-xs text-slate-600 z-10 flex items-center space-x-3">
-                    <span id="coordinates-display"><i class="fa-solid fa-location-crosshairs text-indigo-600 mr-1"></i> Lat: 17.6599, Lon: 75.9064</span>
-                    <span class="text-slate-300">|</span>
-                    <span id="scale-display"><i class="fa-solid fa-scale-balanced text-indigo-600 mr-1"></i> Scale: 1:50,000</span>
-                </div>
-            </main>
-
-        </div>
-
-        <!-- Legend Modal -->
-        <div id="legend-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
-                <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-                    <h3 class="font-bold text-sm flex items-center space-x-2">
-                        <i class="fa-solid fa-book-atlas text-indigo-400"></i>
-                        <span>Map Symbology & Legend</span>
-                    </h3>
-                    <button onclick="closeLegendModal()" class="text-slate-400 hover:text-white transition">
-                        <i class="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                </div>
-                <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs">
-                    <div class="flex items-center space-x-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <div class="w-6 h-6 rounded-md bg-indigo-500/30 border-2 border-indigo-600 flex items-center justify-center"></div>
-                        <div>
-                            <p class="font-semibold text-slate-800">Solapur Wards (2026)</p>
-                            <p class="text-slate-500 text-[11px]">Administrative boundary polygons</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <div class="w-6 h-6 rounded-md bg-amber-500/40 border-2 border-amber-600 flex items-center justify-center"></div>
-                        <div>
-                            <p class="font-semibold text-slate-800">Slum Settlements</p>
-                            <p class="text-slate-500 text-[11px]">Identified urban housing clusters</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <div class="w-6 h-6 rounded-md bg-teal-600 flex items-center justify-center text-white"><i class="fa-solid fa-minus text-xs"></i></div>
-                        <div>
-                            <p class="font-semibold text-slate-800">Drainage Network</p>
-                            <p class="text-slate-500 text-[11px]">Stormwater & sewage lines</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <div class="w-6 h-6 rounded-md bg-blue-500 flex items-center justify-center text-white"><i class="fa-solid fa-road text-xs"></i></div>
-                        <div>
-                            <p class="font-semibold text-slate-800">Road Network</p>
-                            <p class="text-slate-500 text-[11px]">Arterial and secondary municipal roads</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <div class="w-6 h-6 rounded-full bg-cyan-600 flex items-center justify-center text-white text-[10px]"><i class="fa-solid fa-shield-halved"></i></div>
-                        <div>
-                            <p class="font-semibold text-slate-800">Police Stations</p>
-                            <p class="text-slate-500 text-[11px]">Law enforcement safety infrastructure</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
-                        <div class="w-6 h-6 rounded-full bg-rose-600 flex items-center justify-center text-white text-[10px]"><i class="fa-solid fa-hospital"></i></div>
-                        <div>
-                            <p class="font-semibold text-slate-800">Solapur Hospitals</p>
-                            <p class="text-slate-500 text-[11px]">Healthcare facilities & clinics</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="px-6 py-3 bg-slate-50 border-t border-slate-100 flex justify-end">
-                    <button onclick="closeLegendModal()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition shadow-sm">Got it</button>
-                </div>
+            <div class="status-bar">
+                <span>Solapur Municipal Corporation • GIS Cell © 2026</span>
+                <span id="coordinates">Lat: 17.6599, Lon: 75.9064</span>
             </div>
         </div>
 
         <!-- OpenLayers JS -->
-        <script src="https://cdn.jsdelivr.net/npm/ol@v7.4.0/dist/ol.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/6.15.1/ol.js"></script>
         <script>
-            // Initialize OpenLayers Map centered on Solapur, Maharashtra (Approx 17.6599° N, 75.9064° E)
-            const solapurCenter = ol.proj.fromLonLat([75.9064, 17.6599]);
-
-            // Basemaps
-            const osmSource = new ol.source.OSM();
-            const osmLayer = new ol.layer.Tile({ source: osmSource });
+            // Base Maps Definition
+            const osmLayer = new ol.layer.Tile({
+                source: new ol.source.OSM(),
+                title: 'OSM Standard'
+            });
 
             const cartoLayer = new ol.layer.Tile({
                 source: new ol.source.XYZ({
                     url: 'https://{a-c}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
                     attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
                 }),
+                title: 'Carto Light',
                 visible: false
             });
 
-            const satLayer = new ol.layer.Tile({
+            const satelliteLayer = new ol.layer.Tile({
                 source: new ol.source.XYZ({
                     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                    attribution: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-GP, and the GIS User Community'
+                    attribution: 'Tiles &copy; Esri'
                 }),
+                title: 'Satellite',
                 visible: false
             });
 
-            // Mock vector layers representing the 6 user datasets
-            // 1. Solapur Wards (Polygon)
-            const wardsSource = new ol.source.Vector();
+            // Sample Vector Layers (Replace with your actual GeoJSON/Vector layers)
+            const wardsSource = new ol.source.Vector({
+                url: 'https://raw.githubusercontent.com/openlayers/openlayers/main/examples/data/geojson/switzerland.geojson', // Replace with your GeoJSON URL or local path
+                format: new ol.format.GeoJSON()
+            });
+
             const wardsLayer = new ol.layer.Vector({
                 source: wardsSource,
                 style: new ol.style.Style({
-                    stroke: new ol.style.Stroke({ color: '#4f46e5', width: 2 }),
-                    fill: new ol.style.Fill({ color: 'rgba(79, 70, 229, 0.1)' })
+                    stroke: new ol.style.Stroke({ color: '#e74c3c', width: 2 }),
+                    fill: new ol.style.Fill({ color: 'rgba(231, 76, 60, 0.1)' })
                 }),
-                opacity: 0.8
+                name: 'Solapur Wards (2026)',
+                category: 'Administrative'
             });
 
-            // 2. Slum Settlements (Polygon)
-            const slumSource = new ol.source.Vector();
-            const slumLayer = new ol.layer.Vector({
-                source: slumSource,
+            const roadsLayer = new ol.layer.Vector({
+                source: new ol.source.Vector(),
                 style: new ol.style.Style({
-                    stroke: new ol.style.Stroke({ color: '#d97706', width: 1.5 }),
-                    fill: new ol.style.Fill({ color: 'rgba(217, 119, 6, 0.25)' })
+                    stroke: new ol.style.Stroke({ color: '#2980b9', width: 3 })
                 }),
-                opacity: 0.75
+                name: 'Road Network',
+                category: 'Transport & Safety'
             });
 
-            // 3. Drainage Network (Line)
-            const drainageSource = new ol.source.Vector();
-            const drainageLayer = new ol.layer.Vector({
-                source: drainageSource,
+            const slumsLayer = new ol.layer.Vector({
+                source: new ol.source.Vector(),
                 style: new ol.style.Style({
-                    stroke: new ol.style.Stroke({ color: '#0d9488', width: 2 })
+                    stroke: new ol.style.Stroke({ color: '#d35400', width: 2 }),
+                    fill: new ol.style.Fill({ color: 'rgba(211, 84, 0, 0.2)' })
                 }),
-                opacity: 0.85
+                name: 'Slum Settlements',
+                category: 'Utilities & Housing'
             });
 
-            // 4. Road Network (Line)
-            const roadSource = new ol.source.Vector();
-            const roadLayer = new ol.layer.Vector({
-                source: roadSource,
-                style: new ol.style.Style({
-                    stroke: new ol.style.Stroke({ color: '#3b82f6', width: 2.5 })
-                }),
-                opacity: 0.9
-            });
-
-            // 5. Police Station (Point)
-            const policeSource = new ol.source.Vector();
-            const policeLayer = new ol.layer.Vector({
-                source: policeSource,
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 7,
-                        fill: new ol.style.Fill({ color: '#0891b2' }),
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
-                    })
-                }),
-                opacity: 1.0
-            });
-
-            // 6. Solapur Hospitals (Point)
-            const hospitalSource = new ol.source.Vector();
-            const hospitalLayer = new ol.layer.Vector({
-                source: hospitalSource,
-                style: new ol.style.Style({
-                    image: new ol.style.Circle({
-                        radius: 7,
-                        fill: new ol.style.Fill({ color: '#e11d48' }),
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
-                    })
-                }),
-                opacity: 1.0
-            });
-
-            // Register layers in a map object dictionary for easy reference
-            const appLayers = {
-                'solapur_wards_2026_2': wardsLayer,
-                'slum_3': slumLayer,
-                'drainage_4': drainageLayer,
-                'road_2_5': roadLayer,
-                'police_station_6': policeLayer,
-                'solapur_hospitals_7': hospitalLayer
-            };
+            // Group Layers Registry
+            const managedLayers = [
+                { id: 'wards', layer: wardsLayer, category: 'Administrative', name: 'Solapur Wards (2026)' },
+                { id: 'roads', layer: roadsLayer, category: 'Transport & Safety', name: 'Road Network' },
+                { id: 'slums', layer: slumsLayer, category: 'Utilities & Housing', name: 'Slum Settlements' }
+            ];
 
             // Initialize Map
             const map = new ol.Map({
                 target: 'map',
-                layers: [osmLayer, cartoLayer, satLayer, wardsLayer, slumLayer, drainageLayer, roadLayer, policeLayer, hospitalLayer],
+                layers: [osmLayer, cartoLayer, satelliteLayer, wardsLayer, roadsLayer, slumsLayer],
                 view: new ol.View({
-                    center: solapurCenter,
-                    zoom: 13,
-                    maxZoom: 19,
-                    minZoom: 10
-                }),
-                controls: ol.control.defaults.defaults({attribution: false}).extend([
-                    new ol.control.ScaleLine({units: 'metric'})
-                ])
+                    center: ol.proj.fromLonLat([75.9064, 17.6599]),
+                    zoom: 12
+                })
             });
 
-            // Generate realistic sample features around Solapur center to populate the layers
-            function generateMockFeatures() {
-                // Wards (Polygons)
-                for (let i = 1; i <= 8; i++) {
-                    const offsetX = (Math.random() - 0.5) * 0.08;
-                    const offsetY = (Math.random() - 0.5) * 0.08;
-                    const coords = [
-                        [75.88 + offsetX, 17.64 + offsetY],
-                        [75.92 + offsetX, 17.64 + offsetY],
-                        [75.92 + offsetX, 17.68 + offsetY],
-                        [75.88 + offsetX, 17.68 + offsetY],
-                        [75.88 + offsetX, 17.64 + offsetY]
-                    ].map(c => ol.proj.fromLonLat(c));
+            // Populate Sidebar Layer Catalog dynamically
+            function buildLayerCatalog() {
+                const container = document.getElementById('layer-catalog-container');
+                container.innerHTML = '';
 
-                    const feature = new ol.Feature({
-                        geometry: new ol.polygon.Polygon([coords]),
-                        layerName: 'Solapur Wards (2026)',
-                        Ward_No: i,
-                        Ward_Name: `Ward No. ${i} - North Zone`,
-                        Population: Math.floor(15000 + Math.random() * 25000),
-                        Area_SqKm: (2.5 + Math.random() * 3).toFixed(2),
-                        Commissioner: `Officer ${String.fromCharCode(65 + i)}`
-                    });
-                    wardsSource.addFeature(feature);
-                }
-
-                // Slum Settlements
-                for (let i = 1; i <= 6; i++) {
-                    const offsetX = (Math.random() - 0.5) * 0.06;
-                    const offsetY = (Math.random() - 0.5) * 0.06;
-                    const coords = [
-                        [75.89 + offsetX, 17.65 + offsetY],
-                        [75.91 + offsetX, 17.65 + offsetY],
-                        [75.91 + offsetX, 17.67 + offsetY],
-                        [75.89 + offsetX, 17.67 + offsetY],
-                        [75.89 + offsetX, 17.65 + offsetY]
-                    ].map(c => ol.proj.fromLonLat(c));
-
-                    const feature = new ol.Feature({
-                        geometry: new ol.polygon.Polygon([coords]),
-                        layerName: 'Slum Settlements',
-                        Slum_ID: `SLUM-${100 + i}`,
-                        Settlement_Name: `Settlement Pocket ${i}`,
-                        Households: Math.floor(200 + Math.random() * 800),
-                        Water_Access: Math.random() > 0.4 ? 'Available (Public Standpost)' : 'Scarce',
-                        Drainage_Type: 'Open Trench'
-                    });
-                    slumSource.addFeature(feature);
-                }
-
-                // Roads
-                for (let i = 1; i <= 10; i++) {
-                    const startLon = 75.86 + Math.random() * 0.08;
-                    const startLat = 17.63 + Math.random() * 0.08;
-                    const endLon = startLon + (Math.random() - 0.5) * 0.04;
-                    const endLat = startLat + (Math.random() - 0.5) * 0.04;
-
-                    const feature = new ol.Feature({
-                        geometry: new ol.geom.LineString([
-                            ol.proj.fromLonLat([startLon, startLat]),
-                            ol.proj.fromLonLat([endLon, endLat])
-                        ]),
-                        layerName: 'Road Network',
-                        Road_ID: `RD-50${i}`,
-                        Road_Name: `Main Arterial Link ${i}`,
-                        Surface_Type: i % 2 === 0 ? 'Bituminous (Asphalt)' : 'Concrete',
-                        Lane_Count: (i % 3) + 2
-                    });
-                    roadSource.addFeature(feature);
-                }
-
-                // Drainage
-                for (let i = 1; i <= 8; i++) {
-                    const startLon = 75.87 + Math.random() * 0.06;
-                    const startLat = 17.64 + Math.random() * 0.06;
-                    const feature = new ol.Feature({
-                        geometry: new ol.geom.LineString([
-                            ol.proj.fromLonLat([startLon, startLat]),
-                            ol.proj.fromLonLat([startLon + 0.02, startLat + 0.01])
-                        ]),
-                        layerName: 'Drainage Network',
-                        Drain_ID: `DR-80${i}`,
-                        Network_Type: i % 2 === 0 ? 'Stormwater Conduit' : 'Underground Sewer',
-                        Status: 'Operational'
-                    });
-                    drainageSource.addFeature(feature);
-                }
-
-                // Police Stations
-                const policeStationsData = [
-                    { name: 'Sadar Bazar Police Station', lat: 17.6682, lon: 75.9121, contact: '0217-2321100' },
-                    { name: 'Faujdar Chavdi Police Station', lat: 17.6592, lon: 75.9082, contact: '0217-2321200' },
-                    { name: 'Jail Road Police Station', lat: 17.6515, lon: 75.9250, contact: '0217-2321300' },
-                    { name: 'MIDC Solapur Police Station', lat: 17.6800, lon: 75.8900, contact: '0217-2321400' }
-                ];
-                policeStationsData.forEach((p, idx) => {
-                    const feature = new ol.Feature({
-                        geometry: new ol.geom.Point(ol.proj.fromLonLat([p.lon, p.lat])),
-                        layerName: 'Police Stations',
-                        Station_Name: p.name,
-                        Jurisdiction: `Zone ${idx + 1}`,
-                        Emergency_Phone: p.contact
-                    });
-                    policeSource.addFeature(feature);
+                // Group by category
+                const categories = {};
+                managedLayers.forEach(item => {
+                    if (!categories[item.category]) categories[item.category] = [];
+                    categories[item.category].push(item);
                 });
 
-                // Hospitals
-                const hospitalsData = [
-                    { name: 'Ashwini Hospital & Research Centre', lat: 17.6620, lon: 75.9150, beds: 250 },
-                    { name: 'Yashwantrao Chavan Hospital (SMC)', lat: 17.6570, lon: 75.9030, beds: 400 },
-                    { name: 'Government Civil Hospital Solapur', lat: 17.6540, lon: 75.9100, beds: 600 },
-                    { name: 'Niramay Multispeciality Hospital', lat: 17.6690, lon: 75.9010, beds: 120 }
-                ];
-                hospitalsData.forEach((h, idx) => {
-                    const feature = new ol.Feature({
-                        geometry: new ol.geom.Point(ol.proj.fromLonLat([h.lon, h.lat])),
-                        layerName: 'Solapur Hospitals',
-                        Hospital_Name: h.name,
-                        Bed_Capacity: h.beds,
-                        Category: 'Multispeciality',
-                        Helpline: `+91-217-${5000000 + idx}`
-                    });
-                    hospitalSource.addFeature(feature);
-                });
-
-                // Update total feature count in header
-                const totalFeatures = wardsSource.getFeatures().length +
-                                      slumSource.getFeatures().length +
-                                      roadSource.getFeatures().length +
-                                      drainageSource.getFeatures().length +
-                                      policeSource.getFeatures().length +
-                                      hospitalSource.getFeatures().length;
-                document.getElementById('stat-features').innerText = totalFeatures;
-            }
-
-            generateMockFeatures();
-
-            // Popup Interaction Handling
-            const container = document.getElementById('popup');
-            const content = document.getElementById('popup-content');
-            const closer = document.getElementById('popup-closer');
-
-            const overlay = new ol.Overlay({
-                element: container,
-                autoPan: { animation: { duration: 250 } }
-            });
-            map.addOverlay(overlay);
-
-            closer.onclick = function() {
-                overlay.setPosition(undefined);
-                closer.blur();
-                return false;
-            };
-
-            map.on('singleclick', function(evt) {
-                let clickedFeature = null;
-                map.forEachFeatureAtPixel(evt.pixel, function(feature) {
-                    clickedFeature = feature;
-                    return true;
-                });
-
-                if (clickedFeature) {
-                    const props = clickedFeature.getProperties();
-                    const layerTitle = props.layerName || 'Spatial Feature';
+                for (const [catName, items] of Object.entries(categories)) {
+                    let catDiv = document.createElement('div');
+                    catDiv.innerHTML = `<div class="category-title">${catName} <span>${items.length} LAYER</span></div>`;
                     
-                    let htmlCard = `<div class="font-bold text-slate-900 border-b border-slate-100 pb-1.5 mb-2 flex items-center space-x-2"><i class="fa-solid fa-circle-info text-indigo-600"></i><span>${layerTitle}</span></div>`;
-                    htmlCard += `<div class="space-y-1.5 max-h-48 overflow-y-auto">`;
-                    for (let key in props) {
-                        if (key !== 'geometry' && key !== 'layerName') {
-                            htmlCard += `<div class="flex justify-between text-xs"><span class="text-slate-500 font-medium">${key.replace(/_/g, ' ')}:</span> <span class="text-slate-800 font-semibold">${props[key]}</span></div>`;
-                        }
-                    }
-                    htmlCard += `</div>`;
-
-                    content.innerHTML = htmlCard;
-                    container.classList.remove('hidden');
-                    overlay.setPosition(evt.coordinate);
-                } else {
-                    container.classList.add('hidden');
-                    overlay.setPosition(undefined);
+                    items.forEach(item => {
+                        let itemDiv = document.createElement('div');
+                        itemDiv.className = 'layer-item';
+                        itemDiv.setAttribute('data-name', item.name.toLowerCase());
+                        itemDiv.innerHTML = `
+                            <div class="layer-item-header">
+                                <label>
+                                    <input type="checkbox" checked onchange="toggleLayerVisibility('${item.id}', this.checked)">
+                                    ${item.name}
+                                </label>
+                            </div>
+                            <div class="layer-controls">
+                                <span>Opacity: <span id="val-${item.id}">100</span>%</span>
+                                <input type="range" min="0" max="100" value="100" oninput="changeLayerOpacity('${item.id}', this.value)">
+                            </div>
+                        `;
+                        catDiv.appendChild(itemDiv);
+                    });
+                    container.appendChild(catDiv);
                 }
-            });
+                document.getElementById('layer-count').innerText = managedLayers.length;
+            }
 
-            // Coordinate tracking on mouse move
-            map.on('pointermove', function(evt) {
-                const coord = ol.proj.toLonLat(evt.coordinate);
-                document.getElementById('coordinates-display').innerHTML = `<i class="fa-solid fa-location-crosshairs text-indigo-600 mr-1"></i> Lat: ${coord[1].toFixed(4)}, Lon: ${coord[0].toFixed(4)}`;
-            });
-
-            // Sidebar Toggle for Mobile / Desktop
-            const sidebar = document.getElementById('sidebar');
-            let sidebarOpen = true;
-            document.getElementById('sidebar-toggle').addEventListener('click', () => {
-                sidebarOpen = !sidebarOpen;
-                if (sidebarOpen) {
-                    sidebar.classList.remove('-translate-x-full', 'hidden');
-                } else {
-                    sidebar.classList.add('-translate-x-full');
-                }
-            });
-
-            // Layer Visibility Toggle
-            function toggleLayerVisibility(layerId, isVisible) {
-                if (appLayers[layerId]) {
-                    appLayers[layerId].setVisible(isVisible);
+            // Layer Visibility Control Function
+            function toggleLayerVisibility(id, isVisible) {
+                const target = managedLayers.find(l => l.id === id);
+                if (target) {
+                    target.layer.setVisible(isVisible);
                 }
             }
 
-            // Layer Opacity Slider
-            function changeLayerOpacity(layerId, val) {
-                document.getElementById(`opacity-val-${layerId}`).innerText = val;
-                if (appLayers[layerId]) {
-                    appLayers[layerId].setOpacity(val / 100);
+            // Layer Opacity Control Function
+            function changeLayerOpacity(id, val) {
+                const target = managedLayers.find(l => l.id === id);
+                if (target) {
+                    target.layer.setOpacity(val / 100);
+                    document.getElementById(`val-${id}`).innerText = val;
                 }
             }
 
-            // Basemap Switcher
+            // Base Map Switcher
             function setBaseMap(type) {
                 osmLayer.setVisible(type === 'osm');
                 cartoLayer.setVisible(type === 'carto');
-                satLayer.setVisible(type === 'sat');
+                satelliteLayer.setVisible(type === 'satellite');
 
-                document.getElementById('btn-basemap-osm').className = type === 'osm' ? 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition shadow-xs' : 'px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition';
-                document.getElementById('btn-basemap-carto').className = type === 'carto' ? 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition shadow-xs' : 'px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition';
-                document.getElementById('btn-basemap-sat').className = type === 'sat' ? 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white transition shadow-xs' : 'px-3 py-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition';
+                document.querySelectorAll('.basemap-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
             }
 
-            // Reset Map View
-            function resetMapView() {
-                map.getView().animate({
-                    center: solapurCenter,
-                    zoom: 13,
-                    duration: 500
+            // Search Filter Function
+            function filterLayers() {
+                let query = document.getElementById('layer-search-input').value.toLowerCase();
+                let items = document.querySelectorAll('.layer-item');
+                items.forEach(item => {
+                    let name = item.getAttribute('data-name');
+                    if (name.includes(query)) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
                 });
             }
 
-            // Legend Modal Actions
-            function openLegendModal() {
-                document.getElementById('legend-modal').classList.remove('hidden');
-            }
-            function closeLegendModal() {
-                document.getElementById('legend-modal').classList.add('hidden');
-            }
+            // Coordinate Display on Mouse Move
+            map.on('pointermove', function(evt) {
+                let coord = ol.proj.toLonLat(evt.coordinate);
+                document.getElementById('coordinates').innerText = `Lat: ${coord[1].toFixed(4)}, Lon: ${coord[0].toFixed(4)}`;
+            });
 
-            // Measurement Tool stub toggle
-            let measureActive = false;
-            function toggleMeasureTool() {
-                measureActive = !measureActive;
-                const btn = document.getElementById('measure-btn');
-                if (measureActive) {
-                    btn.classList.add('bg-amber-600', 'text-white', 'border-amber-500');
-                    btn.classList.remove('bg-slate-800', 'text-slate-200');
-                    // Notification simulation without alert()
-                } else {
-                    btn.classList.remove('bg-amber-600', 'text-white', 'border-amber-500');
-                    btn.classList.add('bg-slate-800', 'text-slate-200');
-                }
-            }
-
-            // Layer Filtering by text query
-            function filterLayers(query) {
-                const q = query.toLowerCase();
-                const groups = document.querySelectorAll('#layer-catalog > div');
-                groups.forEach(group => {
-                    const items = group.querySelectorAll('[data-layer-group], .space-y-2 > div');
-                    let groupHasMatch = false;
-                    items.forEach(item => {
-                        const text = item.innerText.toLowerCase();
-                        if (text.includes(q)) {
-                            item.style.display = '';
-                            groupHasMatch = true;
-                        } else {
-                            item.style.display = 'none';
-                        }
-                    });
-                });
-            }
+            // Initialize catalog on load
+            buildLayerCatalog();
         </script>
     </body>
 </html>

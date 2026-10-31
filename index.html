@@ -496,7 +496,7 @@
                     ].map(c => ol.proj.fromLonLat(c));
 
                     const feature = new ol.Feature({
-                        geometry: new ol.polygon.Polygon([coords]),
+                        geometry: new ol.geom.Polygon([coords]),
                         layerName: 'Solapur Wards (2026)',
                         Ward_No: i,
                         Ward_Name: `Ward No. ${i} - North Zone`,
@@ -520,7 +520,7 @@
                     ].map(c => ol.proj.fromLonLat(c));
 
                     const feature = new ol.Feature({
-                        geometry: new ol.polygon.Polygon([coords]),
+                        geometry: new ol.geom.Polygon([coords]),
                         layerName: 'Slum Settlements',
                         Slum_ID: `SLUM-${100 + i}`,
                         Settlement_Name: `Settlement Pocket ${i}`,
@@ -617,6 +617,12 @@
             }
 
             generateMockFeatures();
+
+            // Refresh map size after the dashboard layout has settled.
+            // This helps prevent vector layers from appearing clipped or misplaced.
+            window.addEventListener('load', () => map.updateSize());
+            window.addEventListener('resize', () => map.updateSize());
+            setTimeout(() => map.updateSize(), 250);
 
             // Popup Interaction Handling
             const container = document.getElementById('popup');
